@@ -59,7 +59,7 @@ df = df.sort_values('date').reset_index(drop=True)
 print(f" Dataset loaded: {len(df):,} records from {df['date'].min().date()} to {df['date'].max().date()}")
 
 # =============================================================================
-# FEATURE ENGINEERING  [IMPROVED: More robust indicators + BB + ATR]
+# FEATURE ENGINEERING
 # =============================================================================
 def create_technical_indicators(df):
     print("\nCreating technical indicators and lag features...")
@@ -87,7 +87,7 @@ def create_technical_indicators(df):
     df['volatility_20']  = df['daily_return'].rolling(20).std()
     df['volatility_5']   = df['daily_return'].rolling(5).std()
 
-    # ── ATR — Average True Range (IMPROVEMENT: new feature) ───────────────
+    # ── ATR — Average True Range ───────────────
     high_low             = df['high'] - df['low']
     high_close           = (df['high'] - df['close'].shift(1)).abs()
     low_close            = (df['low']  - df['close'].shift(1)).abs()
@@ -104,7 +104,7 @@ def create_technical_indicators(df):
 
     df['RSI_14']         = calc_rsi(df['close'])
 
-    # ── MACD (IMPROVEMENT: new feature) ───────────────────────────────────
+    # ── MACD  ───────────────────────────────────
     ema12                = df['close'].ewm(span=12, adjust=False).mean()
     ema26                = df['close'].ewm(span=26, adjust=False).mean()
     df['MACD']           = ema12 - ema26
@@ -121,13 +121,13 @@ def create_technical_indicators(df):
     df['volume_ratio']   = df['volume'] / (df['volume_ma_10'] + 1e-10)
     df['OBV']            = (np.sign(df['daily_return']) * df['volume']).cumsum()
 
-    # ── Lag features (IMPROVEMENT: lag 1-5 for close + returns) ───────────
+    # ── Lag features  ───────────
     for lag in [1, 2, 3, 5]:
         df[f'close_lag{lag}']  = df['close'].shift(lag)
         df[f'return_lag{lag}'] = df['daily_return'].shift(lag)
     df['volume_lag1']    = df['volume'].shift(1)
 
-    # ── Target: predict NEXT-DAY RETURN (avoids look-ahead bias) ──────────
+    # ── Target: predict NEXT-DAY RETURN  ──────────
     df['target_return']    = df['close'].pct_change().shift(-1)
     df['target_direction'] = (df['target_return'] > 0).astype(int)
 
@@ -140,7 +140,7 @@ df_clean      = df.dropna().copy().reset_index(drop=True)
 print(f" Clean dataset size: {len(df_clean):,} rows")
 
 # =============================================================================
-# FEATURE SELECTION  [IMPROVEMENT: richer feature set]
+# FEATURE SELECTION
 # =============================================================================
 FEATURE_COLS = [
     'open', 'high', 'low', 'volume',
@@ -160,7 +160,7 @@ FEATURE_COLS = [
 print(f"\n Using {len(FEATURE_COLS)} features")
 
 # =============================================================================
-# TRAIN / TEST SPLIT  [IMPROVEMENT: strict temporal split]
+# TRAIN / TEST SPLIT
 # =============================================================================
 X     = df_clean[FEATURE_COLS].values
 y_reg = df_clean['target_return'].values
@@ -183,7 +183,7 @@ print(f"\n Train: {len(X_train):,} samples | Test: {len(X_test):,} samples")
 # =============================================================================
 print("\nTraining regression models...")
 
-# ── Linear Regression (Ridge regularization — IMPROVEMENT) ────────────────
+# ── Linear Regression  ────────────────
 print("  Training Linear Regression (Ridge)...")
 lr_reg       = Ridge(alpha=1.0)
 lr_reg.fit(X_train_s, y_train_r)
@@ -195,7 +195,7 @@ print("  Training Decision Tree Regressor...")
 dt_reg = DecisionTreeRegressor(
     max_depth=15,
     min_samples_leaf=5,
-    min_samples_split=10,      # IMPROVEMENT: prevents micro-splits
+    min_samples_split=10,
     random_state=42
 )
 dt_reg.fit(X_train, y_train_r)
@@ -208,7 +208,7 @@ rf_reg = RandomForestRegressor(
     n_estimators=300,
     max_depth=20,
     min_samples_leaf=3,
-    max_features='sqrt',       # IMPROVEMENT: reduces overfitting
+    max_features='sqrt',
     random_state=42,
     n_jobs=-1
 )
@@ -216,7 +216,7 @@ rf_reg.fit(X_train, y_train_r)
 y_pred_rf_r  = rf_reg.predict(X_test)
 print("   Random Forest done")
 
-# ── Gradient Boosting Regressor (IMPROVEMENT: new model) ──────────────────
+# ── Gradient Boosting Regressor  ──────────────────
 print("  Training Gradient Boosting Regressor...")
 gb_reg = GradientBoostingRegressor(
     n_estimators=200,
@@ -230,7 +230,7 @@ y_pred_gb_r  = gb_reg.predict(X_test)
 print("   Gradient Boosting done")
 
 # =============================================================================
-# CONVERT RETURNS → PRICES (for scatter visualization)
+# CONVERT RETURNS -> PRICES
 # =============================================================================
 current_prices   = df_clean['close'].values[split:]
 actual_prices    = current_prices * (1 + y_test_r)
@@ -258,7 +258,7 @@ y_pred_rf_c  = rf_clf.predict(X_test)
 print("   Classification models done")
 
 # =============================================================================
-# CLUSTERING  [IMPROVEMENT: guard for missing tickers]
+# CLUSTERING
 # =============================================================================
 print("\nRunning K-Means clustering...")
 
